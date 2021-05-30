@@ -1,4 +1,4 @@
-const String githubHash = "tbd";
+const String githubHash = "to be replaced after git push";
 const bool debug = false;
 
 #include <limits.h>
@@ -108,7 +108,7 @@ unsigned int lastDisplayInSeconds = 0;
 void Utils::publishJson() {
     String json("{");
     JSonizer::addFirstSetting(json, "githubHash", githubHash);
-    JSonizer::addSetting(json, "githubRepo", "https://github.com/chrisxkeith/light-sensor");
+    JSonizer::addSetting(json, "githubRepo", "https://github.com/chrisxkeith/current-sensor.git");
     JSonizer::addSetting(json, "lastPublishInSeconds ", String(lastPublishInSeconds));
     JSonizer::addSetting(json, "publishRateInSeconds", String(publishRateInSeconds));
     JSonizer::addSetting(json, "lastDisplayInSeconds", String(lastDisplayInSeconds));
@@ -171,6 +171,7 @@ class Sensor {
     String  name;
     int     nSamples;
     double  total;
+    int     max;
 
   public:
     Sensor(int pin, String name) {
@@ -180,18 +181,27 @@ class Sensor {
       pinMode(pin, INPUT);
     }
     
+    int getMaxValue() { return max; }
+    String getName() { return name; }
+
     void sample() {
+      int v;
       if (pin >= A0 && pin <= A5) {
-          total += analogRead(pin);
+        v = analogRead(pin);
       } else {
-          total += digitalRead(pin);
+        v = digitalRead(pin);
       }
+      total += v;
       nSamples++;
+      if (v > max) {
+        max = v;
+      }
     }
     
     void clear() {
       nSamples = 0;
       total = 0.0;
+      max = 0;
     }
 
     int publishState() {
@@ -204,12 +214,8 @@ class Sensor {
       return 1;
     }
 
-    void publishData() {
-      Utils::publish(name, String(getValue()));
-    }
-
-    int getValue() {
-        return round(total / nSamples);
+    int getAverageValue() {
+      return round(total / nSamples);
     }
 };
 
@@ -362,12 +368,11 @@ void display_digits(unsigned int num) {
   oledWrapper.displayNumber(String(num));
 }
 
-const int THRESHOLD = 350;
-bool on = false;
-int previousValue = 0;
-
-void display_on_oled() {
-  oledWrapper.displayNumber(String(currentSensor.getValue()));
+int rms() {
+  int v = currentSensor.getMaxValue();  
+  v = v * 3300 / 1023;    // get actual voltage (ADC voltage reference = 3.3V)
+  v /= sqrt(2);           // calculate the RMS value ( = peak/√2 )
+  return v;
 }
 
 // getSettings() is already defined somewhere.
@@ -381,9 +386,9 @@ int pubSettings(String command) {
     }
     return 1;
 }
-
+ 
 int pubData(String command) {
-  currentSensor.publishData();
+  Utils::publish(currentSensor.getName(), String(rms()));
   return 1;
 }
 
@@ -431,6 +436,8 @@ void setup() {
   clear();
   pubSettings("");
   oledWrapper.clear();
+  oledWrapper.display(githubHash, 0);
+  delay(5000);
   Utils::publish("Message", "Finished setup...");
 }
 
@@ -438,7 +445,7 @@ void loop() {
   timeSupport.handleTime();
   sample();
   if ((lastDisplayInSeconds + displayIntervalInSeconds) <= (millis() / 1000)) {
-    display_on_oled();
+    display_digits(rms());
     lastDisplayInSeconds = millis() / 1000;
   }
   if ((lastPublishInSeconds + publishRateInSeconds) <= (millis() / 1000)) {
