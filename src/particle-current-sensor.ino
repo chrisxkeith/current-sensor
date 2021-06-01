@@ -102,7 +102,7 @@ void Utils::publish(String event, String data) {
 }
 int publishRateInSeconds = 3;
 system_tick_t lastPublishInSeconds = 0;
-unsigned int displayIntervalInSeconds = publishRateInSeconds;
+unsigned int displayIntervalInSeconds = 1;
 unsigned int lastDisplayInSeconds = 0;
 
 void Utils::publishJson() {
