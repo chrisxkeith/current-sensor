@@ -204,13 +204,17 @@ class Sensor {
       max = 0;
     }
 
-    int publishState() {
+    String getState() {
       String json("{");
       JSonizer::addFirstSetting(json, "name", name);
       JSonizer::addSetting(json, "nSamples", String(nSamples));
       JSonizer::addSetting(json, "total", String(total));
       json.concat("}");
-      Utils::publish("Message", json);
+      return json;
+    }
+
+    int publishState() {
+      Utils::publish("Diagnostic", this->getState());
       return 1;
     }
 
@@ -397,8 +401,14 @@ int pubState(String command) {
   return 1;
 }
 
+String previousState = "not set";
 void sample() {
-  currentSensor.sample();
+  const int SAMPLE_INTERVAL = 100; // ~1000 samples.
+  int start = millis();
+  while (millis() - start < SAMPLE_INTERVAL) {
+    currentSensor.sample();
+  }
+  previousState = currentSensor.getState();
 }
 
 void clear() {
@@ -451,6 +461,9 @@ void loop() {
   if ((lastPublishInSeconds + publishRateInSeconds) <= (millis() / 1000)) {
     lastPublishInSeconds = millis() / 1000;
     pubData("");
-    clear();
+    if (debug) {
+      Utils::publish("Diagnostic", previousState);
+    }
   }
+  clear();
 }
