@@ -172,6 +172,7 @@ class Sensor {
     int     nSamples;
     double  total;
     int     max;
+    String  vals;
 
   public:
     Sensor(int pin, String name) {
@@ -183,6 +184,7 @@ class Sensor {
     
     int getMaxValue() { return max; }
     String getName() { return name; }
+    String getVals() { return vals; }
 
     void sample() {
       int v;
@@ -196,12 +198,17 @@ class Sensor {
       if (v > max) {
         max = v;
       }
+      if (vals.length() < 255) {
+        vals.concat(" ");
+        vals.concat(v);
+      }
     }
     
     void clear() {
       nSamples = 0;
       total = 0.0;
       max = 0;
+      vals.remove(0);
     }
 
     String getState() {
@@ -457,13 +464,13 @@ void loop() {
   if ((lastDisplayInSeconds + displayIntervalInSeconds) <= (millis() / 1000)) {
     display_digits(rms());
     lastDisplayInSeconds = millis() / 1000;
-  }
-  if ((lastPublishInSeconds + publishRateInSeconds) <= (millis() / 1000)) {
-    lastPublishInSeconds = millis() / 1000;
-    pubData("");
-    if (debug) {
-      Utils::publish("Diagnostic", previousState);
+    if ((lastPublishInSeconds + publishRateInSeconds) <= (millis() / 1000)) {
+      pubData("");
+      lastPublishInSeconds = millis() / 1000;
+      if (debug) {
+        Utils::publish("Diagnostic", currentSensor.getVals());
+      }
     }
+    clear();
   }
-  clear();
 }
