@@ -6,7 +6,7 @@
         "*.ino": "cpp",
         "algorithm": "cpp"
     },
-    "particle.targetDevice": "photon-05",
+    "particle.targetDevice": "photon-09",
     "particle.firmwareVersion": "3.0.0",
     "particle.targetPlatform": "photon"
 }
