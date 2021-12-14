@@ -172,7 +172,7 @@ class Sensor {
     int     nSamples;
     double  total;
     int     max;
-    String  vals;
+    int     minValue;
 
   public:
     Sensor(int pin, String name) {
@@ -183,8 +183,8 @@ class Sensor {
     }
     
     int getMaxValue() { return max; }
+    int getMinValue() { return minValue; }
     String getName() { return name; }
-    String getVals() { return vals; }
 
     void sample() {
       int v;
@@ -198,9 +198,8 @@ class Sensor {
       if (v > max) {
         max = v;
       }
-      if (vals.length() < 255) {
-        vals.concat(" ");
-        vals.concat(v);
+      if (v < minValue) {
+        minValue = v;
       }
     }
     
@@ -208,7 +207,7 @@ class Sensor {
       nSamples = 0;
       total = 0.0;
       max = 0;
-      vals.remove(0);
+      minValue = 4095;
     }
 
     String getState() {
@@ -216,6 +215,9 @@ class Sensor {
       JSonizer::addFirstSetting(json, "name", name);
       JSonizer::addSetting(json, "nSamples", String(nSamples));
       JSonizer::addSetting(json, "total", String(total));
+      JSonizer::addSetting(json, "getAverageValue()", String(this->getAverageValue()));
+      JSonizer::addSetting(json, "max", String(max));
+      JSonizer::addSetting(json, "minValue", String(minValue));
       json.concat("}");
       return json;
     }
@@ -392,6 +394,8 @@ int pubSettings(String command) {
         Utils::publishJson();
     } else if (command.compareTo("time") == 0) {
         timeSupport.publishJson();
+    } else if (command.compareTo("current") == 0) {
+        currentSensor.publishState();
     } else {
         Utils::publish("GetSettings bad input", command);
     }
@@ -467,9 +471,7 @@ void loop() {
     if ((lastPublishInSeconds + publishRateInSeconds) <= (millis() / 1000)) {
       pubData("");
       lastPublishInSeconds = millis() / 1000;
-      if (debug) {
-        Utils::publish("Diagnostic", currentSensor.getVals());
-      }
+//      currentSensor.publishState();
     }
     clear();
   }
