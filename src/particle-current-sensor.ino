@@ -8,6 +8,7 @@ class JSonizer {
     static void addFirstSetting(String& json, String key, String val);
     static void addSetting(String& json, String key, String val);
     static String toString(bool b);
+    static void addJSON(String& json, String key, String& source);
 };
 
 class Utils {
@@ -76,6 +77,13 @@ void JSonizer::addFirstSetting(String& json, String key, String val) {
 void JSonizer::addSetting(String& json, String key, String val) {
     json.concat(",");
     addFirstSetting(json, key, val);
+}
+
+void JSonizer::addJSON(String& json, String key, String& source) {
+  json.concat(",\"");
+  json.concat(key);
+  json.concat("\":");
+  json.concat(source);
 }
 
 String JSonizer::toString(bool b) {
@@ -165,6 +173,50 @@ void TimeSupport::publishJson() {
 }
 TimeSupport    timeSupport(-8, "PST");
 
+class Bucketizer {
+  private:
+     int    nBuckets;
+     int    maxExpected;
+     int*   buckets;
+     int    nOutOfRange;
+  public:
+    Bucketizer(int nBuckets, int maxExpected) {
+      this->nBuckets = nBuckets;
+      this->maxExpected = maxExpected;
+      this->buckets = new int[nBuckets];
+      this->clear();
+    }
+    void clear() {
+      for (int i = 0; i < this->nBuckets; i++) {
+        this->buckets[i] = 0;
+      }
+      this->nOutOfRange = 0;
+    }
+    void addValue(int val) {
+      if (val > this->maxExpected) {
+        this->nOutOfRange++;
+      } else {
+        int bucketIndex = val / this->nBuckets;
+        this->buckets[bucketIndex]++;
+      }
+    }
+    String getValues() {
+      String json("{");
+      JSonizer::addFirstSetting(json, "nBuckets", String(this->nBuckets));
+      JSonizer::addSetting(json, "maxExpected", String(this->maxExpected));
+      JSonizer::addSetting(json, "nOutOfRange", String(this->nOutOfRange));
+      JSonizer::addSetting(json, "bucketsize", String(this->maxExpected / this->nBuckets));
+      String s = String();
+      for (int i = 0; i < this->nBuckets; i++) {
+        s.concat(",");
+        s.concat(this->buckets[i]);
+      }
+      JSonizer::addSetting(json, "buckets", s);
+      json.concat("}");
+      return json;
+    }
+};
+
 class Sensor {
   private:
     int     pin;
@@ -173,13 +225,15 @@ class Sensor {
     double  total;
     int     max;
     int     minValue;
+    Bucketizer*  bucketizer;
 
   public:
     Sensor(int pin, String name) {
       this->pin = pin;
       this->name = name;
-      clear();
       pinMode(pin, INPUT);
+      this->bucketizer = new Bucketizer(20,300);
+      clear();
     }
     
     int getMaxValue() { return max; }
@@ -201,6 +255,7 @@ class Sensor {
       if (v < minValue) {
         minValue = v;
       }
+      this->bucketizer->addValue(v);
     }
     
     void clear() {
@@ -208,6 +263,7 @@ class Sensor {
       total = 0.0;
       max = 0;
       minValue = 4095;
+      bucketizer->clear();
     }
 
     String getState() {
@@ -218,6 +274,8 @@ class Sensor {
       JSonizer::addSetting(json, "getAverageValue()", String(this->getAverageValue()));
       JSonizer::addSetting(json, "max", String(max));
       JSonizer::addSetting(json, "minValue", String(minValue));
+      String vals(this->bucketizer->getValues());
+      JSonizer::addJSON(json, "buckets", vals);
       json.concat("}");
       return json;
     }
