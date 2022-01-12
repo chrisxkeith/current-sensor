@@ -217,6 +217,8 @@ class Bucketizer {
     }
 };
 
+#include <math.h>
+
 class Sensor {
   private:
     int     pin;
@@ -274,6 +276,7 @@ class Sensor {
       JSonizer::addSetting(json, "getAverageValue()", String(this->getAverageValue()));
       JSonizer::addSetting(json, "max", String(max));
       JSonizer::addSetting(json, "minValue", String(minValue));
+      JSonizer::addSetting(json, "rms()", String(this->rms()));
       String vals(this->bucketizer->getValues());
       JSonizer::addJSON(json, "buckets", vals);
       json.concat("}");
@@ -288,10 +291,16 @@ class Sensor {
     int getAverageValue() {
       return round(total / nSamples);
     }
+
+    int rms() {
+      int v = this->getMaxValue();  
+      v = v * 3300 / 1023;    // get actual voltage (ADC voltage reference = 3.3V)
+      v /= sqrt(2.0);           // calculate the RMS value ( = peak/√2 )
+      return v;
+    }
 };
 
 #include <SparkFunMicroOLED.h>
-#include <math.h>
 
 class OLEDWrapper {
   public:
@@ -439,13 +448,6 @@ void display_digits(unsigned int num) {
   oledWrapper.displayNumber(String(num));
 }
 
-int rms() {
-  int v = currentSensor.getMaxValue();  
-  v = v * 3300 / 1023;    // get actual voltage (ADC voltage reference = 3.3V)
-  v /= sqrt(2);           // calculate the RMS value ( = peak/√2 )
-  return v;
-}
-
 // getSettings() is already defined somewhere.
 int pubSettings(String command) {
     if (command.compareTo("") == 0) {
@@ -461,7 +463,7 @@ int pubSettings(String command) {
 }
  
 int pubData(String command) {
-  Utils::publish(currentSensor.getName(), String(rms()));
+  Utils::publish(currentSensor.getName(), String(currentSensor.rms()));
   return 1;
 }
 
@@ -524,7 +526,7 @@ void loop() {
   timeSupport.handleTime();
   sample();
   if ((lastDisplayInSeconds + displayIntervalInSeconds) <= (millis() / 1000)) {
-    display_digits(rms());
+    display_digits(currentSensor.rms());
     lastDisplayInSeconds = millis() / 1000;
     if ((lastPublishInSeconds + publishRateInSeconds) <= (millis() / 1000)) {
       pubData("");
