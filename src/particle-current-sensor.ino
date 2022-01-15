@@ -474,7 +474,8 @@ int pubState(String command) {
 
 String previousState = "not set";
 void sample() {
-  const int SAMPLE_INTERVAL = 100; // ~1000 samples.
+                                    // 60 cycles / second -> 16.666... ms / cycle
+  const int SAMPLE_INTERVAL = 100;  // ~1000 samples, ~6 cycles(?)
   int start = millis();
   while (millis() - start < SAMPLE_INTERVAL) {
     currentSensor.sample();
@@ -531,7 +532,6 @@ void loop() {
     if ((lastPublishInSeconds + publishRateInSeconds) <= (millis() / 1000)) {
       pubData("");
       lastPublishInSeconds = millis() / 1000;
-//      currentSensor.publishState();
     }
     clear();
   }
