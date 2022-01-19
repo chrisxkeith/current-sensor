@@ -7,7 +7,7 @@
         "algorithm": "cpp",
         "cmath": "cpp"
     },
-    "particle.targetDevice": "photon-15",
-    "particle.firmwareVersion": "3.2.0-rc.1",
+    "particle.targetDevice": "photon-05",
+    "particle.firmwareVersion": "3.2.0",
     "particle.targetPlatform": "photon"
 }

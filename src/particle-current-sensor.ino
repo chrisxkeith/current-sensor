@@ -448,6 +448,28 @@ void display_digits(unsigned int num) {
   oledWrapper.displayNumber(String(num));
 }
 
+int sumOfCurrent = 0;
+int averageSamples = 0;
+void updateAverage(int v) {
+  sumOfCurrent += v;
+  averageSamples++;
+}
+int publishAverage(String command) {
+  int avg = sumOfCurrent / averageSamples;
+  String json("{");
+  JSonizer::addFirstSetting(json, "sumOfCurrent", String(sumOfCurrent));
+  JSonizer::addSetting(json, "averageSamples", String(averageSamples));
+  JSonizer::addSetting(json, "Average", String(avg));
+  json.concat("}");
+  Utils::publish("Average", json);
+  return 1;
+}
+int resetAverage(String command) {
+  sumOfCurrent = 0;
+  averageSamples = 0;
+  return 1;
+}
+
 // getSettings() is already defined somewhere.
 int pubSettings(String command) {
     if (command.compareTo("") == 0) {
@@ -512,6 +534,8 @@ void setup() {
   Particle.function("pubFromCon", pubConsole);
   Particle.function("setPubRate", setPubRate);
   Particle.function("pubState", pubState);
+  Particle.function("pubAverage", publishAverage);
+  Particle.function("rstAverage", resetAverage);
   sample();
   lastPublishInSeconds = millis() / 1000;
   pubData("");
@@ -527,7 +551,9 @@ void loop() {
   timeSupport.handleTime();
   sample();
   if ((lastDisplayInSeconds + displayIntervalInSeconds) <= (millis() / 1000)) {
-    display_digits(currentSensor.rms());
+    int rms = currentSensor.rms();
+    display_digits(rms);
+    updateAverage(rms);
     lastDisplayInSeconds = millis() / 1000;
     if ((lastPublishInSeconds + publishRateInSeconds) <= (millis() / 1000)) {
       pubData("");
