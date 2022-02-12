@@ -444,6 +444,80 @@ OLEDWrapper oledWrapper;
 
 Sensor currentSensor(A0,  "Current sensor");
 
+class DryerMonitor {
+  private:
+    unsigned long minSecToMillis(unsigned long minutes, unsigned long seconds) {
+      return (minutes * 60 * 1000) + (seconds * 1000);
+    }
+                  // When the dryer goes into wrinkle guard mode, it is off for 04:45,
+                  // then powers on for 00:15.
+    const unsigned long WRINKLE_GUARD_OFF = minSecToMillis(4, 45);
+    const unsigned long WRINKLE_GUARD_ON = minSecToMillis(0, 15);
+                  // Give onesself 30 seconds to get to the dryer.
+    const unsigned int WARNING_IN_SECONDS = 30;
+    const unsigned int WARNING_INTERVAL = minSecToMillis(0, WARNING_IN_SECONDS);
+    const unsigned int THRESHOLD = 198; // Current sensor reading where dryer switches between on/off.
+
+    enum class DryerState { Off, Drying, WrinkleGuardOff, WrinkleGuardOn };
+
+    unsigned int previousChangeTimeInMS = millis();
+                  // Assume that sensor unit has been initialized while dryer is off.
+    DryerState previousDryerState = DryerState::Off;    
+    unsigned int previousCurrent = currentSensor.getAverageValue(); // TODO: will this not change fast enough?
+    bool sentAlert = false;
+
+    bool powerChanged() {
+      unsigned int newValue = currentSensor.getAverageValue();
+      if (this->previousCurrent < THRESHOLD) {
+        return (newValue > THRESHOLD);
+      }
+      return newValue <= THRESHOLD;
+    }
+    void sendAlert() {
+      if (!this->sentAlert) {
+        String s("Dryer will start tumble cycle in about ");
+        s.concat(WARNING_IN_SECONDS);
+        s.concat(" seconds.");
+        this->sentAlert = true;
+      }
+    }
+  public:
+    void doMonitor() {
+      unsigned int nowMS = millis();
+      unsigned int intervalSinceLastChange = nowMS - this->previousChangeTimeInMS;
+      // Handle going back to DryerState::Off state.
+      if (this->previousDryerState == DryerState::WrinkleGuardOff &&
+          intervalSinceLastChange > 2 * this->WRINKLE_GUARD_OFF) {
+        this->previousDryerState == DryerState::Off;
+        this->previousChangeTimeInMS = nowMS;
+      } else {
+        if (this->powerChanged()) {
+          switch (this->previousDryerState) {
+            case DryerState::Off:
+              this->previousDryerState = DryerState::Drying;
+              break;
+            case DryerState::Drying:
+              this->previousDryerState = DryerState::WrinkleGuardOff;
+              this->sentAlert = false;
+              break;
+            case DryerState::WrinkleGuardOff:
+              this->previousDryerState = DryerState::WrinkleGuardOn;
+              break;
+            case DryerState::WrinkleGuardOn:
+              this->previousDryerState = DryerState::WrinkleGuardOff;
+              break;
+          }
+          this->previousChangeTimeInMS = nowMS;
+        }
+        if (this->previousDryerState == DryerState::WrinkleGuardOff &&
+            intervalSinceLastChange > this->WRINKLE_GUARD_OFF - this->WARNING_INTERVAL) {
+              this->sendAlert();
+        }
+      }
+    }
+};
+DryerMonitor dryerMonitor;
+
 void display_digits(unsigned int num) {
   oledWrapper.displayNumber(String(num));
 }
