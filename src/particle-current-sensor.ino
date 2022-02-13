@@ -484,8 +484,8 @@ class DryerMonitor {
       switch (state) {
         case DryerState::Off: return "Off";
         case DryerState::Drying: return "Drying";
-        case DryerState::WrinkleGuardOff: return "WrinkleGuardOff";
-        case DryerState::WrinkleGuardOn: return "WrinkleGuardOn";
+        case DryerState::WrinkleGuardOff: return "Wrinkle Cycle (Off)";
+        case DryerState::WrinkleGuardOn: return "Wrinkle Cycle (On)";
         default: return "unknown DryerState";
       }
     }
@@ -496,7 +496,14 @@ class DryerMonitor {
       json.concat("}");
       Utils::publish("State change", json);
     }
+    void displayStatus(DryerMonitor::DryerState s) {
+      oledWrapper.display(this->dryerStateStr(s), this->STATE_FONT);
+      delay(2000);
+      oledWrapper.clear();
+    }
   public:
+    const static unsigned int STATE_FONT = 1;
+
     void doMonitor() {
       unsigned int nowMS = millis();
       unsigned int intervalSinceLastChange = nowMS - this->previousChangeTimeInMS;
@@ -524,7 +531,7 @@ class DryerMonitor {
           }
           this->sendStateChange();
           this->previousChangeTimeInMS = nowMS;
-          oledWrapper.display(this->currentDryerState(), 0);
+          oledWrapper.display(this->currentDryerState(), STATE_FONT);
         }
         if (this->previousDryerState == DryerState::WrinkleGuardOff &&
             intervalSinceLastChange > this->WRINKLE_GUARD_OFF - this->WARNING_INTERVAL) {
@@ -534,6 +541,12 @@ class DryerMonitor {
     }
     String currentDryerState() {
       return this->dryerStateStr(this->previousDryerState);
+    }
+    void displayStatuses() {
+      this->displayStatus(DryerState::Off);
+      this->displayStatus(DryerState::Drying);
+      this->displayStatus(DryerState::WrinkleGuardOff);
+      this->displayStatus(DryerState::WrinkleGuardOn);
     }
 };
 DryerMonitor dryerMonitor;
@@ -650,10 +663,10 @@ void setup() {
   clear();
   pubSettings("");
   oledWrapper.clear();
-  oledWrapper.display(githubHash, 0);
+  oledWrapper.display(githubHash, 1);
   delay(5000);
   oledWrapper.clear();
-  oledWrapper.display(dryerMonitor.currentDryerState(), 0);
+  oledWrapper.display(dryerMonitor.currentDryerState(), DryerMonitor::STATE_FONT);
   Utils::publish("Message", "Finished setup...");
 }
 

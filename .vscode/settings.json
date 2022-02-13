@@ -5,7 +5,8 @@
     "files.associations": {
         "*.ino": "cpp",
         "algorithm": "cpp",
-        "cmath": "cpp"
+        "cmath": "cpp",
+        "ostream": "cpp"
     },
     "particle.targetDevice": "photon-05",
     "particle.firmwareVersion": "3.2.0",
