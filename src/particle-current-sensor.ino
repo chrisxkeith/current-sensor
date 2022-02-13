@@ -524,12 +524,16 @@ class DryerMonitor {
           }
           this->sendStateChange();
           this->previousChangeTimeInMS = nowMS;
+          oledWrapper.display(this->currentDryerState(), 0);
         }
         if (this->previousDryerState == DryerState::WrinkleGuardOff &&
             intervalSinceLastChange > this->WRINKLE_GUARD_OFF - this->WARNING_INTERVAL) {
               this->sendAlert();
         }
       }
+    }
+    String currentDryerState() {
+      return this->dryerStateStr(this->previousDryerState);
     }
 };
 DryerMonitor dryerMonitor;
@@ -648,6 +652,8 @@ void setup() {
   oledWrapper.clear();
   oledWrapper.display(githubHash, 0);
   delay(5000);
+  oledWrapper.clear();
+  oledWrapper.display(dryerMonitor.currentDryerState(), 0);
   Utils::publish("Message", "Finished setup...");
 }
 
