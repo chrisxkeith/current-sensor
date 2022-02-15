@@ -455,22 +455,24 @@ class DryerMonitor {
                   // Give onesself 30 seconds to get to the dryer.
     const unsigned int WARNING_IN_SECONDS = 30;
     const unsigned int WARNING_INTERVAL = minSecToMillis(0, WARNING_IN_SECONDS);
-    const unsigned int THRESHOLD = 198; // Current sensor reading where dryer switches between on/off.
+//    const unsigned int THRESHOLD = 198; // Current sensor reading where clothes dryer switches between on/off.
+    const unsigned int THRESHOLD = 356;   // Current sensor reading where hair dryer switches between Hi/off (for testing).
 
     enum class DryerState { Off, Drying, WrinkleGuardOff, WrinkleGuardOn };
 
     unsigned int previousChangeTimeInMS = millis();
                   // Assume that sensor unit has been initialized while dryer is off.
-    DryerState previousDryerState = DryerState::Off;    
+    DryerState previousDryerState = DryerState::Off;
     unsigned int previousCurrent = currentSensor.rms();
+    unsigned int currentCurrent = 0;
     bool sentAlert = false;
 
     bool powerChanged() {
-      unsigned int newValue = currentSensor.rms();
-      if (this->previousCurrent < THRESHOLD) {
-        return (newValue > THRESHOLD);
+      currentCurrent = currentSensor.rms();
+      if (this->previousCurrent <= THRESHOLD) {
+        return (currentCurrent > THRESHOLD);
       }
-      return newValue <= THRESHOLD;
+      return currentCurrent <= THRESHOLD;
     }
     void sendAlert() {
       if (!this->sentAlert) {
@@ -488,13 +490,6 @@ class DryerMonitor {
         case DryerState::WrinkleGuardOn: return "Wrinkle Cycle (On)";
         default: return "unknown DryerState";
       }
-    }
-    void sendStateChange() {
-      String json("{");
-      JSonizer::addFirstSetting(json, "newState", this->dryerStateStr(this->previousDryerState));
-      JSonizer::addSetting(json, "previousChangeTimeInMS", String(this->previousChangeTimeInMS));
-      json.concat("}");
-      Utils::publish("State change", json);
     }
     void displayStatus(DryerMonitor::DryerState s) {
       oledWrapper.display(this->dryerStateStr(s), this->STATE_FONT);
@@ -531,6 +526,7 @@ class DryerMonitor {
           }
           this->sendStateChange();
           this->previousChangeTimeInMS = nowMS;
+          this->previousCurrent = this->currentCurrent;
           oledWrapper.display(this->currentDryerState(), STATE_FONT);
         }
         if (this->previousDryerState == DryerState::WrinkleGuardOff &&
@@ -548,8 +544,25 @@ class DryerMonitor {
       this->displayStatus(DryerState::WrinkleGuardOff);
       this->displayStatus(DryerState::WrinkleGuardOn);
     }
+    void sendStateChange() {
+      String json("{");
+      JSonizer::addFirstSetting(json, "newState", this->dryerStateStr(this->previousDryerState));
+      JSonizer::addSetting(json, "previousChangeTimeInMS", String(this->previousChangeTimeInMS));
+      JSonizer::addSetting(json, "previousCurrent", String(this->previousCurrent));
+      JSonizer::addSetting(json, "currentCurrent", String(this->currentCurrent));
+      json.concat("}");
+      Utils::publish("State change", json);
+    }
+    void start() {
+      this->previousCurrent = currentSensor.rms();
+    }
 };
 DryerMonitor dryerMonitor;
+
+int sendState(String command) {
+  dryerMonitor.sendStateChange();
+  return 1;
+}
 
 void display_digits(unsigned int num) {
   oledWrapper.displayNumber(String(num));
@@ -657,6 +670,7 @@ void setup() {
   Particle.function("pubState", pubState);
   Particle.function("pubAverage", publishAverage);
   Particle.function("rstAverage", resetAverage);
+  Particle.function("sendState", sendState);
   sample();
   lastPublishInSeconds = millis() / 1000;
   pubData("");
@@ -666,6 +680,7 @@ void setup() {
   oledWrapper.display(githubHash, 1);
   delay(5000);
   oledWrapper.clear();
+  dryerMonitor.start();
   oledWrapper.display(dryerMonitor.currentDryerState(), DryerMonitor::STATE_FONT);
   Utils::publish("Message", "Finished setup...");
 }
