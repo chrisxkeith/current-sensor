@@ -456,7 +456,7 @@ class DryerMonitor {
     const unsigned int WARNING_IN_SECONDS = 30;
     const unsigned int WARNING_INTERVAL = minSecToMillis(0, WARNING_IN_SECONDS);
 //    const unsigned int THRESHOLD = 198; // Current sensor reading where clothes dryer switches between on/off.
-    const unsigned int THRESHOLD = 356;   // Current sensor reading where hair dryer switches between Hi/off (for testing).
+    const unsigned int THRESHOLD = 125 + ((255 - 125) / 2);   // Current sensor reading where hair dryer switches between Hi/off (for testing).
 
     enum class DryerState { Off, Drying, WrinkleGuardOff, WrinkleGuardOn };
 
@@ -647,17 +647,17 @@ int setPubRate(String command) {
   return 1;
 }
 
-void displayPublish() {
+void displayOnOLED() {
   if ((lastDisplayInSeconds + displayIntervalInSeconds) <= (millis() / 1000)) {
-    int rms = currentSensor.rms();
-    display_digits(rms);
-    updateAverage(rms);
+    display_digits(currentSensor.rms());
     lastDisplayInSeconds = millis() / 1000;
-    if ((lastPublishInSeconds + publishRateInSeconds) <= (millis() / 1000)) {
-      pubData("");
-      lastPublishInSeconds = millis() / 1000;
-    }
-    clear();
+  }
+}
+
+void publishToWeb() {
+  if ((lastPublishInSeconds + publishRateInSeconds) <= (millis() / 1000)) {
+    pubData("");
+    lastPublishInSeconds = millis() / 1000;
   }
 }
 
@@ -690,6 +690,6 @@ void loop() {
   timeSupport.handleTime();
   sample();
   dryerMonitor.doMonitor();
+//  publishToWeb();
   clear();
-//  displayPublish();
 }
