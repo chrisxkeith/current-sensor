@@ -690,6 +690,6 @@ void loop() {
   timeSupport.handleTime();
   sample();
   dryerMonitor.doMonitor();
-//  publishToWeb();
+  publishToWeb();
   clear();
 }
