@@ -108,7 +108,7 @@ void Utils::publish(String event, String data) {
       delay(1000);
     }
 }
-int publishRateInSeconds = 3;
+int publishRateInSeconds = 5;
 system_tick_t lastPublishInSeconds = 0;
 unsigned int displayIntervalInSeconds = 3;
 unsigned int lastDisplayInSeconds = 0;
