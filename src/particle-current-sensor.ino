@@ -570,9 +570,13 @@ void display_digits(unsigned int num) {
 
 int sumOfCurrent = 0;
 int averageSamples = 0;
+int lastAvgStart = INT_MAX;
 void updateAverage(int v) {
   sumOfCurrent += v;
   averageSamples++;
+  if ((lastAvgStart != INT_MAX) && (millis() - lastAvgStart > 30000)) {
+    publishAverage("");
+  }
 }
 int publishAverage(String command) {
   int avg = sumOfCurrent / averageSamples;
@@ -582,11 +586,14 @@ int publishAverage(String command) {
   JSonizer::addSetting(json, "Average", String(avg));
   json.concat("}");
   Utils::publish("Average", json);
+  lastAvgStart = INT_MAX;
   return 1;
 }
 int resetAverage(String command) {
   sumOfCurrent = 0;
   averageSamples = 0;
+  lastAvgStart = millis();
+  Utils::publish("Diagnostic", "Started averaging");
   return 1;
 }
 
@@ -692,5 +699,6 @@ void loop() {
 //  dryerMonitor.doMonitor();
   displayOnOLED();
   publishToWeb();
+  updateAverage(currentSensor.rms());
   clear();
 }
